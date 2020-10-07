@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ナップサック問題(遺伝的アルゴリズム)</title>
+<script>
+let individual = new Array();
+const num = 10, geneNum = 20;
+let maxWeight;
+let t = 1, score_f = 0, score_t = 0;
+
+// 食べ物データ
+const food = [{"name":"&#x1f34c;", "price":100, "weight":30},
+    {"name":"&#x1f34a;", "price":150, "weight":40},
+    {"name":"&#x1f34e;", "price":250, "weight":50},
+    {"name":"&#x1f349;", "price":700, "weight":200},
+    {"name":"&#x1f359;", "price":130, "weight":35},
+    {"name":"&#x1f354;", "price":350, "weight":75},
+    {"name":"&#x1f36b;", "price":120, "weight":35},
+    {"name":"&#x1f36d;", "price":200, "weight":45}];
+
+const init = () => {
+    // 食べ物データの表示
+    const table = document.getElementById("foodTable");
+    const tr = document.createElement("tr");
+    for (let i = 0; i < food.length; i++) {
+        const td = document.createElement("td");
+        td.innerHTML = food[i].name;
+        td.innerHTML += `<br>${food[i].price}円`;
+        td.innerHTML += `<br>${food[i].weight}g`;
+        tr.appendChild(td);
+        table.appendChild(tr);
+    }
+    // 第1世代の作成
+    initGA();
+}
+
+const initGA = () => {
+    // ナップサックの容量を取得
+    maxWeight = document.getElementById("maxWeight").value;
+    // 生成
+    document.getElementById("log").innerHTML = "";
+    [individual, t, score_f, score_t] = [[], 1, 0, 0];
+    for (let i = 0; i < num; i++) {
+        const gene = new Array();
+        let weight = 0;
+        for (let j = 0; j < geneNum; j++) {
+            let foodId = Math.floor(Math.random() * food.length);
+            weight += food[foodId].weight;
+            if (weight > maxWeight) foodId = food.length;
+            gene.push(foodId);
+        }
+        individual.push({"gene":gene, "fitness": 0});
+    }
+    // 評価
+    selection();
+}
+
+const next = () => {
+    // 世代の更新
+    crossover();
+    t++;
+    selection();
+}
+
+const selection = () => {
+    // 評価
+    for (let i = 0; i < individual.length; i++) {
+        let [price, weight] = [0, 0];
+        for (let j = 0; j < geneNum; j++) {
+            if (individual[i].gene[j] < food.length) {
+                price += food[individual[i].gene[j]].price;
+                weight += food[individual[i].gene[j]].weight;
+            }
+        }
+        individual.fitness = 0;
+        if (weight <= maxWeight) individual[i].fitness = price;
+    }
+    // 淘汰
+    individual.sort((a, b) => {
+        return b.fitness - a.fitness;
+    });
+    individual.splice(num);
+    // 表示
+    const log = document.getElementById("log");
+    const list = document.createElement("div");
+    const hr = document.createElement("hr");
+    list.appendChild(hr);
+    const title = document.createElement("div");
+    title.innerText = `第${t}世代`;
+    list.appendChild(title);
+    for (let i = 0; i < num; i++) {
+        const geneList = document.createElement("div");
+        let weight = 0;
+        for (j = 0; j < geneNum; j++) {
+            if (individual[i].gene[j] < food.length) {
+                const gene = document.createElement("span");
+                gene.innerHTML = food[individual[i].gene[j]].name;
+                geneList.appendChild(gene);
+                weight += food[individual[i].gene[j]].weight;
+            }
+        }
+        const fitness = document.createElement("span");
+        fitness.innerText = ` : ${individual[i].fitness}円`;
+        fitness.innerText += ` (${weight}g)`;
+        geneList.appendChild(fitness);
+        list.appendChild(geneList);
+    }
+    log.insertBefore(list, log.firstChild);
+    // 最高記録
+    if (score_f < individual[0].fitness) {
+        score_t = t;
+        score_f = individual[0].fitness;
+    }
+    document.getElementById("score").innerText = `${score_f}円`;
+    document.getElementById("score").innerText += `【第${score_t}世代】`;
+}
+
+const crossover = () => {
+    // 2点交差
+    for (let i = 0; i < num; i += 2) {
+        // 切断箇所
+        const p0 = Math.floor(Math.random()*(geneNum-3)) + 1;
+        const p1 = Math.floor(Math.random()*(geneNum-p0-2)) + 1;
+        // 子の遺伝子を作成
+        let childGene0 = individual[i].gene.concat();
+        let childGene1 = individual[i+1].gene.concat();
+        const gene02 = childGene0.slice(p0+p1);
+        const gene01 = childGene0.slice(p0, p0+p1);
+        const gene00 = childGene0.slice(0, p0);
+        const gene12 = childGene1.slice(p0+p1);
+        const gene11 = childGene1.slice(p0, p0+p1);
+        const gene10 = childGene1.slice(0, p0);
+        childGene0 = gene00.concat(gene11, gene02);
+        childGene1 = gene10.concat(gene01, gene12);
+        // 突然変異
+        mutation(childGene0);
+        mutation(childGene1);
+        // 子の追加
+        individual.push({"gene": childGene0, "fitness": 0});
+        individual.push({"gene": childGene1, "fitness": 0});
+    }
+}
+
+const mutation = gene => {
+    // 突然変異
+    if (Math.floor(Math.random()*100) < 10) {
+        const p = Math.floor(Math.random()*geneNum);
+        const foodId = Math.floor(Math.random()*(food.length+1));
+        gene[p] = foodId;
+    }
+}
+</script>
+<style>
+input[type="number"] {width: 50px;}
+#score {color: #CC0000;}
+table {border-collapse: collapse;}
+td {
+    text-align: center;
+    padding: 5px;
+    border: thin solid #000000;
+}
+</style>
+</head>
+<body onload="init()">
+<p>ナップサック問題（遺伝的アルゴリズム）</p>
+<input type="button" value="はじめから" onclick="initGA()">
+<input type="button" value="次の世代へ" onclick="next()">
+容量：<input type="number" id="maxWeight" value="1000" step="10"
+ onchange="initGA()">g
+最高総価格：<span id="score"></span>
+<hr>
+<table id="foodTable"></table>
+<div id="log"></div>
+</body>
+</html>
